@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchQuery: '',
         selectedContactId: null,
         activeTab: 'whatsapp', // 'whatsapp' or 'email'
+        isEditingIndividual: false,
         
         // Automation Queue
         automationQueue: [],
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const elPreviewTargetName = document.getElementById('preview-target-name');
     const elPreviewTextContent = document.getElementById('preview-text-content');
     const elPreviewBox = document.getElementById('preview-box');
+    const elBtnEditIndividual = document.getElementById('btn-edit-individual');
 
     // Table & Filters
     const elSearchContacts = document.getElementById('search-contacts');
@@ -432,6 +434,18 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/\{\{\s*variavel\s*\}\}/gi, contact.variavel || 'N/A');
     }
 
+    function getContactMessage(contact, channel) {
+        if (!contact) return '';
+        if (channel === 'wa') {
+            return contact.customWhatsapp !== undefined ? contact.customWhatsapp : replaceVariables(state.templates.whatsapp, contact);
+        } else if (channel === 'emailSubject') {
+            return contact.customEmailSubject !== undefined ? contact.customEmailSubject : replaceVariables(state.templates.emailSubject, contact);
+        } else if (channel === 'emailBody') {
+            return contact.customEmailBody !== undefined ? contact.customEmailBody : replaceVariables(state.templates.emailBody, contact);
+        }
+        return '';
+    }
+
     // ==========================================================================
     // UI RENDERING
     // ==========================================================================
@@ -491,6 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.addEventListener('click', (e) => {
                 if (e.target.closest('.actions-cell') || e.target.closest('button')) return;
                 state.selectedContactId = contact.id;
+                state.isEditingIndividual = false;
                 
                 document.querySelectorAll('#contacts-table-body tr').forEach(r => r.classList.remove('selected-row'));
                 tr.classList.add('selected-row');
@@ -500,9 +515,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const badgeClass = contact.status === 'sent' ? 'badge-sent' : 'badge-pending';
             const badgeText = contact.status === 'sent' ? 'Enviado' : 'Pendente';
+            
+            const hasCustom = contact.customWhatsapp !== undefined || contact.customEmailSubject !== undefined || contact.customEmailBody !== undefined;
+            const customIndicator = hasCustom ? ` <span class="badge" style="font-size: 0.65rem; padding: 1px 4px; background: rgba(124, 58, 237, 0.1); color: #c084fc; border: 1px solid rgba(124, 58, 237, 0.2);" title="Mensagem Personalizada">Msg</span>` : '';
 
             tr.innerHTML = `
-                <td><strong>${contact.nome}</strong></td>
+                <td><strong>${contact.nome}</strong>${customIndicator}</td>
                 <td>${contact.telefone}</td>
                 <td><span class="text-secondary">${contact.email || '-'}</span></td>
                 <td><span class="text-secondary">${contact.variavel || '-'}</span></td>
@@ -569,18 +587,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!contact) {
             elPreviewTargetName.textContent = 'Nenhum contato cadastrado';
             elPreviewTextContent.innerHTML = '<span class="text-muted">Importe contatos ou cadastre manualmente para ver a pré-visualização.</span>';
+            elBtnEditIndividual.style.display = 'none';
             return;
         }
 
-        elPreviewTargetName.innerHTML = `<i data-lucide="user" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i> Destinatário: <strong>${contact.nome}</strong>`;
+        elBtnEditIndividual.style.display = 'flex';
+        if (state.isEditingIndividual) return;
+
+        let badgeHtml = '';
+        const hasCustom = (state.activeTab === 'whatsapp' && contact.customWhatsapp !== undefined) ||
+                          (state.activeTab === 'email' && (contact.customEmailSubject !== undefined || contact.customEmailBody !== undefined));
+        if (hasCustom) {
+            badgeHtml = ` <span class="badge" style="font-size: 0.65rem; padding: 2px 6px; margin-left: 8px; background: rgba(124, 58, 237, 0.15); color: #c084fc; border: 1px solid rgba(124, 58, 237, 0.3);">Personalizado</span>`;
+        }
+
+        elPreviewTargetName.innerHTML = `<i data-lucide="user" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i> Destinatário: <strong>${contact.nome}</strong>${badgeHtml}`;
 
         if (state.activeTab === 'whatsapp') {
-            const text = replaceVariables(state.templates.whatsapp, contact);
+            const text = getContactMessage(contact, 'wa');
             elPreviewTextContent.innerHTML = text ? text.replace(/\n/g, '<br>') : '<span class="text-muted">[Mensagem Vazia]</span>';
             elPreviewBox.style.borderColor = 'rgba(37, 211, 102, 0.2)';
         } else {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
+            const subject = getContactMessage(contact, 'emailSubject');
+            const body = getContactMessage(contact, 'emailBody');
             
             elPreviewTextContent.innerHTML = `
                 <div style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 8px;">
@@ -628,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function triggerSingleSend(contact, channel) {
         if (channel === 'wa') {
-            const message = replaceVariables(state.templates.whatsapp, contact);
+            const message = getContactMessage(contact, 'wa');
             const encodedText = encodeURIComponent(message);
             const url = `https://wa.me/${contact.telefone}?text=${encodedText}`;
             
@@ -636,8 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
             markAsSent(contact.id);
             showToast('Link WhatsApp Aberto', `Enviando para ${contact.nome}`, 'success');
         } else if (channel === 'gmail') {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
+            const subject = getContactMessage(contact, 'emailSubject');
+            const body = getContactMessage(contact, 'emailBody');
             const encodedSubject = encodeURIComponent(subject);
             const encodedBody = encodeURIComponent(body);
             const targetEmail = encodeURIComponent(contact.email || '');
@@ -647,8 +676,8 @@ document.addEventListener('DOMContentLoaded', () => {
             markAsSent(contact.id);
             showToast('Gmail Web Aberto', `Escrevendo e-mail para ${contact.nome}`, 'success');
         } else {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
+            const subject = getContactMessage(contact, 'emailSubject');
+            const body = getContactMessage(contact, 'emailBody');
             const encodedSubject = encodeURIComponent(subject);
             const encodedBody = encodeURIComponent(body);
             const url = `mailto:${contact.email || ''}?subject=${encodedSubject}&body=${encodedBody}`;
@@ -846,28 +875,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Message Body preview based on active modal channel
         if (state.automationChannel === 'wa') {
-            const message = replaceVariables(state.templates.whatsapp, contact);
-            elModalMessageHeader.innerHTML = `<span><i data-lucide="phone" style="width:12px;height:12px;display:inline;margin-right:4px;"></i> Envio via WhatsApp</span>`;
-            elModalMessageBody.innerHTML = message ? message.replace(/\n/g, '<br>') : '<span class="text-muted">[Mensagem Vazia]</span>';
+            const message = getContactMessage(contact, 'wa');
+            elModalMessageHeader.innerHTML = `<span><i data-lucide="phone" style="width:12px;height:12px;display:inline;margin-right:4px;"></i> Envio via WhatsApp (Edite abaixo se desejar)</span>`;
+            elModalMessageBody.innerHTML = message ? message.replace(/\n/g, '<br>') : '';
             elModalBtnSend.innerHTML = `<i data-lucide="external-link"></i> Abrir WhatsApp`;
             elModalBtnSend.style.background = 'var(--color-green)';
-            elModalChannelTip.textContent = 'Ao clicar em "Abrir WhatsApp", o WhatsApp Web ou Desktop será aberto com a mensagem preenchida.';
+            elModalChannelTip.textContent = 'Você pode editar a mensagem diretamente no campo acima. Ao clicar em "Abrir WhatsApp", a mensagem personalizada será enviada.';
         } else if (state.automationChannel === 'gmail') {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
-            elModalMessageHeader.innerHTML = `<span>Assunto: <strong>${subject || '[Sem Assunto]'}</strong></span>`;
-            elModalMessageBody.innerHTML = body ? body.replace(/\n/g, '<br>') : '<span class="text-muted">[Corpo Vazio]</span>';
+            const subject = getContactMessage(contact, 'emailSubject');
+            const body = getContactMessage(contact, 'emailBody');
+            elModalMessageHeader.innerHTML = `
+                <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
+                    <span style="white-space: nowrap; color: var(--text-secondary);">Assunto:</span>
+                    <input type="text" id="modal-email-subject-input" value="${subject}" style="flex-grow: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                </div>
+            `;
+            elModalMessageBody.innerHTML = body ? body.replace(/\n/g, '<br>') : '';
             elModalBtnSend.innerHTML = `<i data-lucide="external-link"></i> Abrir Gmail Web`;
             elModalBtnSend.style.background = 'var(--color-gmail)';
-            elModalChannelTip.textContent = 'Ao clicar em "Abrir Gmail Web", uma nova guia será aberta no editor do Gmail com o destinatário, assunto e corpo preenchidos.';
+            elModalChannelTip.textContent = 'Você pode editar o assunto e o corpo do e-mail acima antes de abrir o editor do Gmail.';
         } else {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
-            elModalMessageHeader.innerHTML = `<span>Assunto: <strong>${subject || '[Sem Assunto]'}</strong></span>`;
-            elModalMessageBody.innerHTML = body ? body.replace(/\n/g, '<br>') : '<span class="text-muted">[Corpo Vazio]</span>';
+            const subject = getContactMessage(contact, 'emailSubject');
+            const body = getContactMessage(contact, 'emailBody');
+            elModalMessageHeader.innerHTML = `
+                <div style="display: flex; align-items: center; width: 100%; gap: 8px;">
+                    <span style="white-space: nowrap; color: var(--text-secondary);">Assunto:</span>
+                    <input type="text" id="modal-email-subject-input" value="${subject}" style="flex-grow: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem;">
+                </div>
+            `;
+            elModalMessageBody.innerHTML = body ? body.replace(/\n/g, '<br>') : '';
             elModalBtnSend.innerHTML = `<i data-lucide="external-link"></i> Abrir E-mail Padrão`;
             elModalBtnSend.style.background = 'var(--color-blue)';
-            elModalChannelTip.textContent = 'Ao clicar em "Abrir E-mail Padrão", o seu aplicativo de e-mail local (Outlook, Mail, etc.) será acionado com o conteúdo pronto.';
+            elModalChannelTip.textContent = 'Você pode editar o assunto e o corpo do e-mail acima antes de abrir o cliente de e-mail.';
         }
 
         lucide.createIcons();
@@ -877,25 +916,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const contact = state.automationQueue[state.automationIndex];
         
         if (state.automationChannel === 'wa') {
-            const message = replaceVariables(state.templates.whatsapp, contact);
+            const message = elModalMessageBody.innerText.trim();
+            contact.customWhatsapp = message;
+            saveState();
+            
             const encodedText = encodeURIComponent(message);
             const url = `https://wa.me/${contact.telefone}?text=${encodedText}`;
             window.open(url, '_blank');
-        } else if (state.automationChannel === 'gmail') {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
+        } else {
+            const subjectInput = document.getElementById('modal-email-subject-input');
+            const subject = subjectInput ? subjectInput.value.trim() : getContactMessage(contact, 'emailSubject');
+            const body = elModalMessageBody.innerText.trim();
+            
+            contact.customEmailSubject = subject;
+            contact.customEmailBody = body;
+            saveState();
+            
             const encodedSubject = encodeURIComponent(subject);
             const encodedBody = encodeURIComponent(body);
             const targetEmail = encodeURIComponent(contact.email || '');
-            const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetEmail}&su=${encodedSubject}&body=${encodedBody}`;
-            window.open(url, '_blank');
-        } else {
-            const subject = replaceVariables(state.templates.emailSubject, contact);
-            const body = replaceVariables(state.templates.emailBody, contact);
-            const encodedSubject = encodeURIComponent(subject);
-            const encodedBody = encodeURIComponent(body);
-            const url = `mailto:${contact.email || ''}?subject=${encodedSubject}&body=${encodedBody}`;
-            window.open(url, '_self');
+            
+            if (state.automationChannel === 'gmail') {
+                const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetEmail}&su=${encodedSubject}&body=${encodedBody}`;
+                window.open(url, '_blank');
+            } else {
+                const url = `mailto:${contact.email || ''}?subject=${encodedSubject}&body=${encodedBody}`;
+                window.open(url, '_self');
+            }
         }
 
         markAsSent(contact.id);
@@ -1117,10 +1164,88 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 state.activeTab = targetTab === 'tab-whatsapp' ? 'whatsapp' : 'email';
+                state.isEditingIndividual = false;
                 lastActiveTextarea = state.activeTab === 'whatsapp' ? elTemplateWa : elTemplateEmailBody;
 
                 updateLivePreview();
             });
+        });
+
+        // Individual Message Customization Click
+        elBtnEditIndividual.addEventListener('click', () => {
+            const contact = state.contacts.find(c => c.id === state.selectedContactId) || state.contacts[0];
+            if (!contact) return;
+
+            state.isEditingIndividual = true;
+            
+            if (state.activeTab === 'whatsapp') {
+                const currentMsg = getContactMessage(contact, 'wa');
+                elPreviewTextContent.innerHTML = `
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <textarea id="edit-individual-wa" rows="8" style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-glass-focus); color: #fff; padding: 10px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; line-height: 1.5; resize: vertical;">${currentMsg}</textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        ${contact.customWhatsapp !== undefined ? `<button id="btn-restore-individual" class="btn btn-danger btn-sm" style="padding: 4px 10px;">Restaurar Padrão</button>` : ''}
+                        <button id="btn-cancel-individual" class="btn btn-secondary btn-sm" style="padding: 4px 10px;">Cancelar</button>
+                        <button id="btn-save-individual" class="btn btn-primary btn-sm" style="padding: 4px 10px;">Salvar</button>
+                    </div>
+                `;
+            } else {
+                const currentSubject = getContactMessage(contact, 'emailSubject');
+                const currentBody = getContactMessage(contact, 'emailBody');
+                elPreviewTextContent.innerHTML = `
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Assunto Personalizado:</label>
+                        <input type="text" id="edit-individual-subject" value="${currentSubject}" style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-glass-focus); color: #fff; padding: 8px; border-radius: 6px; font-size: 0.85rem;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px; display: block;">Corpo do E-mail:</label>
+                        <textarea id="edit-individual-body" rows="6" style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-glass-focus); color: #fff; padding: 10px; border-radius: 6px; font-size: 0.85rem; font-family: inherit; line-height: 1.5; resize: vertical;">${currentBody}</textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        ${(contact.customEmailSubject !== undefined || contact.customEmailBody !== undefined) ? `<button id="btn-restore-individual" class="btn btn-danger btn-sm" style="padding: 4px 10px;">Restaurar Padrão</button>` : ''}
+                        <button id="btn-cancel-individual" class="btn btn-secondary btn-sm" style="padding: 4px 10px;">Cancelar</button>
+                        <button id="btn-save-individual" class="btn btn-primary btn-sm" style="padding: 4px 10px;">Salvar</button>
+                    </div>
+                `;
+            }
+
+            // Attach listeners to the newly created buttons
+            document.getElementById('btn-save-individual').addEventListener('click', () => {
+                if (state.activeTab === 'whatsapp') {
+                    contact.customWhatsapp = document.getElementById('edit-individual-wa').value;
+                } else {
+                    contact.customEmailSubject = document.getElementById('edit-individual-subject').value;
+                    contact.customEmailBody = document.getElementById('edit-individual-body').value;
+                }
+                state.isEditingIndividual = false;
+                saveState();
+                renderTable();
+                updateLivePreview();
+                showToast('Mensagem Personalizada', `Salva com sucesso para ${contact.nome}.`, 'success');
+            });
+
+            document.getElementById('btn-cancel-individual').addEventListener('click', () => {
+                state.isEditingIndividual = false;
+                updateLivePreview();
+            });
+
+            const btnRestore = document.getElementById('btn-restore-individual');
+            if (btnRestore) {
+                btnRestore.addEventListener('click', () => {
+                    if (state.activeTab === 'whatsapp') {
+                        delete contact.customWhatsapp;
+                    } else {
+                        delete contact.customEmailSubject;
+                        delete contact.customEmailBody;
+                    }
+                    state.isEditingIndividual = false;
+                    saveState();
+                    renderTable();
+                    updateLivePreview();
+                    showToast('Mensagem Restaurada', `Voltando a utilizar o modelo geral para ${contact.nome}.`, 'info');
+                });
+            }
         });
 
         // Variable Badges click

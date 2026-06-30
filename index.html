@@ -204,8 +204,11 @@
                         <div class="preview-container">
                             <span class="preview-title"><i data-lucide="eye"></i> Pré-visualização em Tempo Real</span>
                             <div class="preview-box" id="preview-box">
-                                <div class="preview-header">
+                                <div class="preview-header" style="display: flex; justify-content: space-between; align-items: center; min-height: 38px;">
                                     <span class="preview-target" id="preview-target-name">Nenhum contato selecionado</span>
+                                    <button id="btn-edit-individual" class="btn btn-ghost btn-sm" style="padding: 2px 8px; font-size: 0.75rem; display: none;">
+                                        <i data-lucide="edit-3" style="width: 12px; height: 12px; margin-right: 4px;"></i> Personalizar
+                                    </button>
                                 </div>
                                 <div class="preview-body" id="preview-text-content">
                                     Escreva um template e adicione contatos para ver a mágica acontecer!
@@ -350,7 +353,7 @@
                         <!-- For WA: WhatsApp Chat Header. For Email: Subject -->
                         <span>Assunto: Carregando...</span>
                     </div>
-                    <div class="message-box-body" id="modal-message-body">
+                    <div class="message-box-body" id="modal-message-body" contenteditable="true" title="Clique para editar a mensagem antes de enviar">
                         Carregando mensagem personalizada...
                     </div>
                 </div>
