@@ -85,6 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const elContactsTableBody = document.getElementById('contacts-table-body');
     const elBtnClearAll = document.getElementById('btn-clear-all');
     const elBtnExportCsv = document.getElementById('btn-export-csv');
+    const elBtnSaveBackup = document.getElementById('btn-save-backup');
+    const elBtnLoadBackup = document.getElementById('btn-load-backup');
+    const elBackupFileInput = document.getElementById('backup-file-input');
 
     // Automation Modal
     const elBtnStartAutomation = document.getElementById('btn-start-automation');
@@ -710,6 +713,73 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     }
 
+    function saveBackupToFile() {
+        if (state.contacts.length === 0) {
+            showToast('Backup Vazio', 'Não há contatos para salvar no backup.', 'warning');
+            return;
+        }
+
+        const backupData = {
+            contacts: state.contacts,
+            templates: state.templates
+        };
+
+        const dataStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `zapflow_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast('Backup Salvo', 'O arquivo de backup (.json) foi baixado com sucesso.', 'success');
+    }
+
+    function handleBackupFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = JSON.parse(evt.target.result);
+                if (data && Array.isArray(data.contacts) && data.templates) {
+                    if (confirm(`Deseja restaurar o backup? Isso substituirá seus contatos e modelos atuais por ${data.contacts.length} contatos do backup.`)) {
+                        state.contacts = data.contacts;
+                        state.templates = data.templates;
+
+                        if (state.contacts.length > 0) {
+                            state.selectedContactId = state.contacts[0].id;
+                        } else {
+                            state.selectedContactId = null;
+                        }
+
+                        // Update template inputs
+                        elTemplateWa.value = state.templates.whatsapp || '';
+                        elTemplateEmailSubject.value = state.templates.emailSubject || '';
+                        elTemplateEmailBody.value = state.templates.emailBody || '';
+
+                        saveState();
+                        updateMetrics();
+                        renderTable();
+                        updateLivePreview();
+
+                        showToast('Backup Restaurado', 'Contatos e templates restaurados com sucesso!', 'success');
+                    }
+                } else {
+                    showToast('Erro de Restauração', 'O arquivo de backup selecionado é inválido ou está corrompido.', 'error');
+                }
+            } catch (err) {
+                showToast('Erro de Restauração', 'Não foi possível ler o arquivo. Certifique-se de que é um arquivo JSON de backup válido.', 'error');
+            }
+            elBackupFileInput.value = ''; // Reset file input
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
     // ==========================================================================
     // SEQUENTIAL AUTOMATION ENGINE (MODAL FLOW)
     // ==========================================================================
@@ -1092,6 +1162,10 @@ document.addEventListener('DOMContentLoaded', () => {
         elBtnClearAll.addEventListener('click', clearAllContacts);
         elBtnExportCsv.addEventListener('click', exportCSV);
         elBtnStartAutomation.addEventListener('click', startSequentialAutomation);
+
+        elBtnSaveBackup.addEventListener('click', saveBackupToFile);
+        elBtnLoadBackup.addEventListener('click', () => elBackupFileInput.click());
+        elBackupFileInput.addEventListener('change', handleBackupFileSelect);
 
         elBtnCloseModal.addEventListener('click', () => {
             elAutomationModal.classList.add('hidden');

@@ -225,10 +225,17 @@
                             <h2>Lista de Contatos</h2>
                         </div>
                         <div class="header-right">
-                            <button id="btn-export-csv" class="btn btn-secondary btn-sm">
+                            <button id="btn-export-csv" class="btn btn-secondary btn-sm" title="Exportar contatos para CSV">
                                 <i data-lucide="download-cloud"></i> Exportar CSV
                             </button>
-                            <button id="btn-clear-all" class="btn btn-danger btn-sm">
+                            <button id="btn-save-backup" class="btn btn-secondary btn-sm" title="Salvar Backup completo (Contatos e Modelos) no seu PC">
+                                <i data-lucide="download"></i> Salvar Backup
+                            </button>
+                            <button id="btn-load-backup" class="btn btn-secondary btn-sm" title="Restaurar Backup completo de um arquivo no seu PC">
+                                <i data-lucide="file-up"></i> Restaurar Backup
+                            </button>
+                            <input type="file" id="backup-file-input" accept=".json" style="display: none;">
+                            <button id="btn-clear-all" class="btn btn-danger btn-sm" title="Limpar todos os contatos">
                                 <i data-lucide="trash-2"></i> Limpar Tudo
                             </button>
                         </div>
