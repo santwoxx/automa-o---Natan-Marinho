@@ -85,13 +85,37 @@
                         <h2>Importar & Cadastrar</h2>
                     </div>
                     <div class="card-body">
-                        <!-- Dropzone -->
-                        <div class="upload-dropzone" id="csv-dropzone">
-                            <input type="file" id="csv-file-input" accept=".csv,.txt" class="file-input">
-                            <i data-lucide="upload-cloud" class="upload-icon"></i>
-                            <p>Arraste seu arquivo <strong>CSV ou TXT</strong> aqui ou <span>clique para navegar</span></p>
-                            <span class="upload-hint">Colunas sugeridas: Nome, Telefone, Email, Variavel</span>
+                        <!-- Import Tabs -->
+                        <div class="tabs-container import-tabs-nav" style="margin-bottom: 16px;">
+                            <button class="tab-btn active" data-import-tab="import-file-container">
+                                <i data-lucide="file-up"></i> Arquivo CSV / TXT
+                            </button>
+                            <button class="tab-btn" data-import-tab="import-text-container">
+                                <i data-lucide="clipboard-text"></i> Colar Lista (Texto)
+                            </button>
                         </div>
+
+                        <!-- Tab 1: File Upload -->
+                        <div class="import-tab-content active" id="import-file-container">
+                            <div class="upload-dropzone" id="csv-dropzone">
+                                <input type="file" id="csv-file-input" accept=".csv,.txt" class="file-input">
+                                <i data-lucide="upload-cloud" class="upload-icon"></i>
+                                <p>Arraste seu arquivo <strong>CSV ou TXT</strong> aqui ou <span>clique para navegar</span></p>
+                                <span class="upload-hint">Colunas sugeridas: Nome, Telefone, Email, Variavel</span>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Paste Text -->
+                        <div class="import-tab-content hidden" id="import-text-container">
+                            <div class="form-group">
+                                <label for="import-text-area">Cole sua lista (um contato por linha):</label>
+                                <textarea id="import-text-area" rows="5" placeholder="Exemplo:&#10;João Silva, 11999998888, joao@email.com&#10;Maria Souza - 11988887777&#10;Pedro Costa; 21977776666; Vencimento 10/10"></textarea>
+                            </div>
+                            <button id="btn-import-text" class="btn btn-primary btn-sm btn-block margin-top-md" style="margin-bottom: 12px;">
+                                <i data-lucide="check"></i> Processar e Adicionar Lista
+                            </button>
+                        </div>
+
                         <div class="import-actions-row">
                             <button id="btn-download-template" class="btn btn-secondary btn-sm">
                                 <i data-lucide="download"></i> Baixar Modelo CSV
@@ -243,7 +267,7 @@
                                             <div class="empty-state">
                                                 <i data-lucide="users" class="empty-icon"></i>
                                                 <p>Nenhum contato cadastrado ou importado.</p>
-                                                <span>Importe uma lista em CSV ou clique em "Cadastro Manual" para começar.</span>
+                                                <span>Importe uma lista em CSV, cole uma lista de texto ou faça um cadastro manual.</span>
                                             </div>
                                         </td>
                                     </tr>

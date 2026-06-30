@@ -1,5 +1,5 @@
 // ==========================================================================
-// ZAPFLOW - APPLICATION LOGIC (UPDATED WITH GMAIL & WATERMARK)
+// ZAPFLOW - APPLICATION LOGIC (UPDATED WITH TEXT LIST IMPORT)
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_TEMPLATES = {
         whatsapp: 'Olá {{nome}}! Tudo bem?\n\nConfirmamos o seu e-mail cadastrado como {{email}}.\nCódigo de referência: {{variavel}}.\n\nQualquer dúvida, estamos à disposição!',
         emailSubject: 'Olá {{nome}}, temos uma novidade para você!',
-        emailBody: 'Prezado(a) {{nome}},\n\nEscrevemos para confirmar o recebimento dos seus dados. O e-mail registrado em nossa base é {{email}}.\n\nInformações adicionais:\n{{variavel}}\n\nAtenciosamente,\nEquipe ZapFlow'
+        emailBody: 'Prezado(a) {{nome}},\n\nEscrevemos para informar o recebimento dos seus dados. O e-mail registrado em nossa base é {{email}}.\n\nInformações adicionais:\n{{variavel}}\n\nAtenciosamente,\nEquipe ZapFlow'
     };
 
     // --- DOM Elements ---
@@ -43,8 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const elMetricRate = document.getElementById('metric-rate');
 
     // Import & Add
+    const elImportTabNavs = document.querySelectorAll('.import-tabs-nav .tab-btn');
+    const elImportTabContents = document.querySelectorAll('.import-tab-content');
+    
+    // File Import
     const elCsvDropzone = document.getElementById('csv-dropzone');
     const elCsvFileInput = document.getElementById('csv-file-input');
+    
+    // Text Import
+    const elImportTextArea = document.getElementById('import-text-area');
+    const elBtnImportText = document.getElementById('btn-import-text');
+    
+    // Other Import Actions
     const elBtnDownloadTemplate = document.getElementById('btn-download-template');
     const elBtnToggleManual = document.getElementById('btn-toggle-manual');
     const elManualForm = document.getElementById('manual-contact-form');
@@ -57,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const elInputVar = document.getElementById('input-var');
 
     // Templates
-    const elTabBtns = document.querySelectorAll('.tab-btn');
+    const elTabBtns = document.querySelectorAll('.tabs-container:not(.import-tabs-nav) .tab-btn');
     const elTabContents = document.querySelectorAll('.tab-content');
     const elTemplateWa = document.getElementById('template-whatsapp');
     const elTemplateEmailSubject = document.getElementById('template-email-subject');
@@ -214,6 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return clean;
     }
 
+    // Import from CSV/TXT file
     function parseCSV(text) {
         const lines = text.split(/\r?\n/);
         if (lines.length === 0 || (lines.length === 1 && lines[0].trim() === '')) {
@@ -314,6 +325,96 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Importação Concluída', `${importedCount} contatos importados com sucesso.${duplicateCount > 0 ? ` (${duplicateCount} duplicados ignorados)` : ''}`, 'success');
         } else {
             showToast('Nenhum contato importado', 'Verifique se as colunas e os números de telefone estão corretos.', 'warning');
+        }
+    }
+
+    // Import from pasted text list
+    function parseTextList(text) {
+        const lines = text.split('\n');
+        let importedCount = 0;
+        let duplicateCount = 0;
+
+        lines.forEach(line => {
+            line = line.trim();
+            if (!line) return;
+
+            // Try splitting by common separators: comma, semicolon, tab, pipe, hyphen, colon
+            let parts = [];
+            const separators = [',', ';', '\t', '|', ' - ', ':'];
+            
+            let separatorUsed = null;
+            for (let sep of separators) {
+                if (line.includes(sep)) {
+                    separatorUsed = sep;
+                    break;
+                }
+            }
+
+            if (separatorUsed) {
+                // Split by the separator
+                parts = line.split(separatorUsed).map(p => p.trim());
+            } else {
+                // Try splitting by last space if no separator is found
+                const lastSpaceIndex = line.lastIndexOf(' ');
+                if (lastSpaceIndex !== -1) {
+                    const lastPart = line.substring(lastSpaceIndex + 1).trim().replace(/\D/g, '');
+                    if (lastPart.length >= 8) { // looks like a phone number
+                        parts = [
+                            line.substring(0, lastSpaceIndex).trim(),
+                            line.substring(lastSpaceIndex + 1).trim()
+                        ];
+                    }
+                }
+            }
+
+            if (parts.length >= 2) {
+                const name = parts[0];
+                let phoneCandidate = parts[1];
+                let emailCandidate = '';
+                let varCandidate = '';
+
+                // If we have more than 2 columns, try to classify them
+                for (let idx = 2; idx < parts.length; idx++) {
+                    const val = parts[idx];
+                    if (val.includes('@')) {
+                        emailCandidate = val;
+                    } else {
+                        varCandidate = val;
+                    }
+                }
+
+                const cleanPhone = formatPhoneNumber(phoneCandidate);
+
+                if (name && cleanPhone) {
+                    const isDuplicate = state.contacts.some(c => c.telefone === cleanPhone);
+                    if (isDuplicate) {
+                        duplicateCount++;
+                        return;
+                    }
+
+                    state.contacts.push({
+                        id: 'contact_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        nome: name,
+                        telefone: cleanPhone,
+                        email: emailCandidate,
+                        variavel: varCandidate,
+                        status: 'pending'
+                    });
+                    importedCount++;
+                }
+            }
+        });
+
+        if (importedCount > 0) {
+            state.selectedContactId = state.contacts[0].id;
+            saveState();
+            updateMetrics();
+            renderTable();
+            updateLivePreview();
+            showToast('Lista Importada', `${importedCount} contatos carregados.${duplicateCount > 0 ? ` (${duplicateCount} duplicados ignorados)` : ''}`, 'success');
+            elImportTextArea.value = ''; // clear text area
+        } else {
+            showToast('Erro de Importação', 'Não conseguimos ler os dados. Use formatos como: Nome, Telefone', 'error');
         }
     }
 
@@ -537,7 +638,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const encodedSubject = encodeURIComponent(subject);
             const encodedBody = encodeURIComponent(body);
             const targetEmail = encodeURIComponent(contact.email || '');
-            // Gmail Web Compose URL
             const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetEmail}&su=${encodedSubject}&body=${encodedBody}`;
             
             window.open(url, '_blank');
@@ -625,11 +725,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.automationQueue = pendingContacts;
         state.automationIndex = 0;
         
-        // Match default channel with active tab (WhatsApp or Gmail/Email)
         if (state.activeTab === 'whatsapp') {
             state.automationChannel = 'wa';
         } else {
-            // Default to Gmail for emails since it is highly requested
             state.automationChannel = 'gmail';
         }
 
@@ -787,6 +885,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elBtnCloseWatermark.addEventListener('click', () => {
             elWatermarkModal.classList.add('hidden');
+        });
+
+        // Import Tab Navigation
+        elImportTabNavs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                elImportTabNavs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const targetTabId = btn.getAttribute('data-import-tab');
+                elImportTabContents.forEach(content => {
+                    if (content.id === targetTabId) {
+                        content.classList.remove('hidden');
+                        content.classList.add('active');
+                    } else {
+                        content.classList.add('hidden');
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Process Pasted Text List
+        elBtnImportText.addEventListener('click', () => {
+            const text = elImportTextArea.value.trim();
+            if (!text) {
+                showToast('Aviso', 'Por favor, cole alguma lista de contatos antes de processar.', 'warning');
+                return;
+            }
+            parseTextList(text);
         });
 
         // Dropzone drag and drop
