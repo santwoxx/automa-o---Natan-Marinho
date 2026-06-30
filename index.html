@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-creator="Natan Marinho">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZapFlow - Automação de Mensagens Inteligente</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Header -->
+        <header class="app-header">
+            <div class="logo-area" id="logo-trigger" style="cursor: pointer;" title="ZapFlow Pro">
+                <div class="logo-icon">
+                    <i data-lucide="send" class="icon-glow"></i>
+                </div>
+                <div class="logo-text">
+                    <h1>ZapFlow</h1>
+                    <span>Automação de Mensagens</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="status-badge">
+                    <span class="status-dot online"></span>
+                    Sistema Pronto
+                </span>
+            </div>
+        </header>
+
+        <!-- Dashboard Metrics -->
+        <section class="metrics-grid">
+            <div class="metric-card glass-panel">
+                <div class="metric-info">
+                    <span class="metric-label">Total de Contatos</span>
+                    <h3 id="metric-total">0</h3>
+                </div>
+                <div class="metric-icon-bg bg-blue">
+                    <i data-lucide="users"></i>
+                </div>
+            </div>
+            <div class="metric-card glass-panel">
+                <div class="metric-info">
+                    <span class="metric-label">Pendentes</span>
+                    <h3 id="metric-pending">0</h3>
+                </div>
+                <div class="metric-icon-bg bg-yellow">
+                    <i data-lucide="clock"></i>
+                </div>
+            </div>
+            <div class="metric-card glass-panel">
+                <div class="metric-info">
+                    <span class="metric-label">Enviados</span>
+                    <h3 id="metric-sent">0</h3>
+                </div>
+                <div class="metric-icon-bg bg-green">
+                    <i data-lucide="check-circle-2"></i>
+                </div>
+            </div>
+            <div class="metric-card glass-panel">
+                <div class="metric-info">
+                    <span class="metric-label">Taxa de Sucesso</span>
+                    <h3 id="metric-rate">0%</h3>
+                </div>
+                <div class="metric-icon-bg bg-purple">
+                    <i data-lucide="trending-up"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace -->
+        <main class="workspace-grid">
+            <!-- Left Column: Settings, Import & Templates -->
+            <div class="workspace-left">
+                <!-- Import & Add Section -->
+                <div class="card glass-panel">
+                    <div class="card-header">
+                        <i data-lucide="file-spreadsheet" class="card-icon text-blue"></i>
+                        <h2>Importar & Cadastrar</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- Dropzone -->
+                        <div class="upload-dropzone" id="csv-dropzone">
+                            <input type="file" id="csv-file-input" accept=".csv,.txt" class="file-input">
+                            <i data-lucide="upload-cloud" class="upload-icon"></i>
+                            <p>Arraste seu arquivo <strong>CSV ou TXT</strong> aqui ou <span>clique para navegar</span></p>
+                            <span class="upload-hint">Colunas sugeridas: Nome, Telefone, Email, Variavel</span>
+                        </div>
+                        <div class="import-actions-row">
+                            <button id="btn-download-template" class="btn btn-secondary btn-sm">
+                                <i data-lucide="download"></i> Baixar Modelo CSV
+                            </button>
+                            <button id="btn-toggle-manual" class="btn btn-ghost btn-sm">
+                                <i data-lucide="plus"></i> Cadastro Manual
+                            </button>
+                        </div>
+
+                        <!-- Manual Form (Hidden by default) -->
+                        <form id="manual-contact-form" class="manual-form hidden">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="input-name">Nome</label>
+                                    <input type="text" id="input-name" placeholder="Ex: João Silva" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="input-phone">Telefone (com DDD)</label>
+                                    <input type="tel" id="input-phone" placeholder="Ex: 11999998888" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="input-email">E-mail</label>
+                                    <input type="email" id="input-email" placeholder="Ex: joao@email.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="input-var">Variável Extra (Opcional)</label>
+                                    <input type="text" id="input-var" placeholder="Ex: R$ 150,00 ou Vencimento 10/10">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary btn-sm">Salvar Contato</button>
+                                <button type="button" id="btn-cancel-manual" class="btn btn-ghost btn-sm">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Template Customization Section -->
+                <div class="card glass-panel">
+                    <div class="card-header">
+                        <i data-lucide="message-square-code" class="card-icon text-purple"></i>
+                        <h2>Personalizar Mensagens</h2>
+                    </div>
+                    <div class="card-body">
+                        <!-- Tabs -->
+                        <div class="tabs-container">
+                            <button class="tab-btn active" data-tab="tab-whatsapp">
+                                <i data-lucide="phone"></i> WhatsApp
+                            </button>
+                            <button class="tab-btn" data-tab="tab-email">
+                                <i data-lucide="mail"></i> E-mail
+                            </button>
+                        </div>
+
+                        <!-- Variable Injector Badge Panel -->
+                        <div class="variables-panel">
+                            <span class="variables-label">Variáveis dinâmicas (clique para inserir):</span>
+                            <div class="variable-badges">
+                                <button class="var-badge" data-var="{{nome}}">{Nome}</button>
+                                <button class="var-badge" data-var="{{telefone}}">{Telefone}</button>
+                                <button class="var-badge" data-var="{{email}}">{E-mail}</button>
+                                <button class="var-badge" data-var="{{variavel}}">{Variável Extra}</button>
+                            </div>
+                        </div>
+
+                        <!-- Tab Contents -->
+                        <div class="tab-content active" id="tab-whatsapp">
+                            <div class="form-group">
+                                <label for="template-whatsapp">Mensagem do WhatsApp</label>
+                                <textarea id="template-whatsapp" rows="6" placeholder="Olá {{nome}}, tudo bem? Identificamos que seu cadastro com o email {{email}} está ativo. Código extra: {{variavel}}."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="tab-content" id="tab-email">
+                            <div class="form-group">
+                                <label for="template-email-subject">Assunto do E-mail</label>
+                                <input type="text" id="template-email-subject" placeholder="Ex: Olá {{nome}}, novidades para você!">
+                            </div>
+                            <div class="form-group margin-top-md">
+                                <label for="template-email-body">Corpo do E-mail</label>
+                                <textarea id="template-email-body" rows="6" placeholder="Prezado(a) {{nome}},\n\nEscrevemos para informar sobre {{variavel}}..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Live Preview -->
+                        <div class="preview-container">
+                            <span class="preview-title"><i data-lucide="eye"></i> Pré-visualização em Tempo Real</span>
+                            <div class="preview-box" id="preview-box">
+                                <div class="preview-header">
+                                    <span class="preview-target" id="preview-target-name">Nenhum contato selecionado</span>
+                                </div>
+                                <div class="preview-body" id="preview-text-content">
+                                    Escreva um template e adicione contatos para ver a mágica acontecer!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Contacts List & Controls -->
+            <div class="workspace-right">
+                <div class="card glass-panel flex-grow-1">
+                    <div class="card-header space-between">
+                        <div class="header-left">
+                            <i data-lucide="list" class="card-icon text-green"></i>
+                            <h2>Lista de Contatos</h2>
+                        </div>
+                        <div class="header-right">
+                            <button id="btn-export-csv" class="btn btn-secondary btn-sm">
+                                <i data-lucide="download-cloud"></i> Exportar CSV
+                            </button>
+                            <button id="btn-clear-all" class="btn btn-danger btn-sm">
+                                <i data-lucide="trash-2"></i> Limpar Tudo
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body flex-column">
+                        <!-- Filters & Search -->
+                        <div class="table-filters-row">
+                            <div class="search-box">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="search-contacts" placeholder="Buscar por nome, telefone...">
+                            </div>
+                            <div class="filter-buttons">
+                                <button class="filter-btn active" data-filter="all">Todos</button>
+                                <button class="filter-btn" data-filter="pending">Pendentes</button>
+                                <button class="filter-btn" data-filter="sent">Enviados</button>
+                            </div>
+                        </div>
+
+                        <!-- Contacts Table Container -->
+                        <div class="table-container">
+                            <table id="contacts-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Telefone</th>
+                                        <th>E-mail</th>
+                                        <th>Variável Extra</th>
+                                        <th>Status</th>
+                                        <th class="text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="contacts-table-body">
+                                    <!-- Dynamic rows will be inserted here -->
+                                    <tr class="empty-state-row">
+                                        <td colspan="6">
+                                            <div class="empty-state">
+                                                <i data-lucide="users" class="empty-icon"></i>
+                                                <p>Nenhum contato cadastrado ou importado.</p>
+                                                <span>Importe uma lista em CSV ou clique em "Cadastro Manual" para começar.</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Big Action Button (Sticky/Floating at bottom of card) -->
+                        <div class="automation-trigger-container">
+                            <button id="btn-start-automation" class="btn btn-primary btn-lg btn-block btn-glow">
+                                <i data-lucide="zap"></i> Iniciar Disparo Sequencial
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Sequential Sending Modal (Assistente de Disparo) -->
+    <div class="modal-overlay hidden" id="automation-modal">
+        <div class="modal-card glass-panel">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i data-lucide="zap" class="text-purple"></i>
+                    <h3>Assistente de Disparo Sequencial</h3>
+                </div>
+                <button class="btn-close-modal" id="btn-close-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-text-row">
+                        <span id="modal-progress-label">Enviando contatos...</span>
+                        <span id="modal-progress-count">0 / 0</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="modal-progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Current Contact Info Card -->
+                <div class="current-contact-card">
+                    <div class="contact-avatar">
+                        <span id="modal-contact-initials">JS</span>
+                    </div>
+                    <div class="contact-details">
+                        <h4 id="modal-contact-name">João Silva</h4>
+                        <p><i data-lucide="phone"></i> <span id="modal-contact-phone">5511999998888</span></p>
+                        <p><i data-lucide="mail"></i> <span id="modal-contact-email">joao@email.com</span></p>
+                    </div>
+                    <span class="badge badge-pending" id="modal-contact-status">Pendente</span>
+                </div>
+
+                <!-- Message Preview Tabs -->
+                <div class="modal-preview-tabs">
+                    <button class="modal-tab-btn active" id="modal-btn-wa" data-channel="wa">
+                        <i data-lucide="message-square" class="text-green"></i> WhatsApp
+                    </button>
+                    <button class="modal-tab-btn" id="modal-btn-gmail" data-channel="gmail">
+                        <i data-lucide="mail" class="text-red"></i> Gmail Web
+                    </button>
+                    <button class="modal-tab-btn" id="modal-btn-mail" data-channel="mail">
+                        <i data-lucide="mail-open" class="text-blue"></i> E-mail Padrão
+                    </button>
+                </div>
+
+                <!-- Message Preview Content Box -->
+                <div class="modal-message-box">
+                    <div class="message-box-header" id="modal-message-header">
+                        <!-- For WA: WhatsApp Chat Header. For Email: Subject -->
+                        <span>Assunto: Carregando...</span>
+                    </div>
+                    <div class="message-box-body" id="modal-message-body">
+                        Carregando mensagem personalizada...
+                    </div>
+                </div>
+
+                <div class="modal-tip">
+                    <i data-lucide="info"></i>
+                    <span id="modal-channel-tip">Ao clicar em "Enviar", uma nova guia será aberta para enviar a mensagem. O sistema avançará automaticamente para o próximo contato.</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-btn-skip" class="btn btn-secondary">
+                    <i data-lucide="skip-forward"></i> Pular Contato
+                </button>
+                <button id="modal-btn-manual-sent" class="btn btn-ghost">
+                    Marcar como Enviado
+                </button>
+                <button id="modal-btn-send" class="btn btn-primary btn-glow">
+                    <i data-lucide="external-link"></i> Enviar Mensagem
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Watermark Easter Egg Modal -->
+    <div class="modal-overlay hidden" id="watermark-modal" style="z-index: 10000;">
+        <div class="watermark-card glass-panel text-center">
+            <div class="watermark-glow-icon">
+                <i data-lucide="shield-check"></i>
+            </div>
+            <h2>Assinatura Digital de Autenticidade</h2>
+            <p class="watermark-desc">Este sistema de automação foi desenvolvido exclusivamente por:</p>
+            <h1 class="watermark-signature">Natan Marinho</h1>
+            <div class="watermark-badge">Criador & Desenvolvedor</div>
+            <p class="watermark-hash">Chave de Registro: NM-PRO-ZAPFLOW-2026</p>
+            <button id="btn-close-watermark" class="btn btn-primary btn-sm margin-top-md">Fechar Autenticação</button>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
